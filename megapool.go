@@ -256,6 +256,10 @@ func (m *Megapool) Equal(other Megapool) bool {
 }
 
 func (m *Megapool) String() string {
+	return strings.Join(m.AsSlice(), ",")
+}
+
+func (m *Megapool) AsSlice() []string {
 	var all []string
 	for _, v := range m.IPPool {
 		all = append(all, v.String())
@@ -263,7 +267,10 @@ func (m *Megapool) String() string {
 	for _, v := range m.PrefixPool {
 		all = append(all, v.String())
 	}
-	return strings.Join(all, ",")
+	for _, v := range m.RangePool {
+		all = append(all, v.String())
+	}
+	return all
 }
 
 func (r *Range) String() string {

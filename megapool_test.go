@@ -2,6 +2,7 @@ package megapool
 
 import (
 	"net/netip"
+	"reflect"
 	"testing"
 )
 
@@ -286,6 +287,30 @@ func TestMegapool_HasMaxSize(t *testing.T) {
 			m, _ := NewMegapool(tt.main)
 			if got := m.HasMaxSize(tt.args); got != tt.want {
 				t.Errorf("Megapool.HasMaxSize() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMegapool_AsSlice(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want []string
+	}{
+		{"empty", "", nil},
+		{"shuffled",
+			"1.1.1.1,1.1.1.5-1.1.1.10,1.1.1.2,2.2.2.0/24,1.1.1.20-1.1.1.25,2.2.3.0/24",
+			[]string{"1.1.1.1", "1.1.1.2", "2.2.2.0/24", "2.2.3.0/24", "1.1.1.5-1.1.1.10", "1.1.1.20-1.1.1.25"}},
+		{"shuffled some more",
+			"2.2.2.0/24,1.1.1.5-1.1.1.10,1.1.1.1,1.1.1.20-1.1.1.25,2.2.3.0/24,1.1.1.2,",
+			[]string{"1.1.1.1", "1.1.1.2", "2.2.2.0/24", "2.2.3.0/24", "1.1.1.5-1.1.1.10", "1.1.1.20-1.1.1.25"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, _ := NewMegapool(tt.args)
+			if got := m.AsSlice(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Megapool.AsSlice() = %v, want %v", got, tt.want)
 			}
 		})
 	}
