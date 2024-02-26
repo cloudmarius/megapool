@@ -2,7 +2,7 @@ package megapool
 
 import (
 	"net/netip"
-	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -309,7 +309,7 @@ func TestMegapool_AsSlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m, _ := NewMegapool(tt.args)
-			if got := m.AsSlice(); !reflect.DeepEqual(got, tt.want) {
+			if got := m.AsSlice(); !slices.Equal(got, tt.want) {
 				t.Errorf("Megapool.AsSlice() = %v, want %v", got, tt.want)
 			}
 		})

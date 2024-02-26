@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 	"net/netip"
-	"reflect"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -23,7 +23,7 @@ type Range struct {
 func NewMegapool(ipsAndCIDRs string) (Megapool, error) {
 	var ipPool []netip.Addr
 	var prefixPool []netip.Prefix
-	var ranges []Range
+	var rangePool []Range
 	items := strings.TrimSpace(ipsAndCIDRs)
 	if len(items) == 0 {
 		return Megapool{}, nil
@@ -45,7 +45,7 @@ func NewMegapool(ipsAndCIDRs string) (Megapool, error) {
 		}
 		r, err := parseRange(vv)
 		if err == nil {
-			ranges = append(ranges, r)
+			rangePool = append(rangePool, r)
 			continue
 		}
 		return Megapool{}, errors.New("not an IP, CIDR block or IP range")
@@ -53,7 +53,7 @@ func NewMegapool(ipsAndCIDRs string) (Megapool, error) {
 	return Megapool{
 		IPPool:     ipPool,
 		PrefixPool: prefixPool,
-		RangePool:  ranges,
+		RangePool:  rangePool,
 	}, nil
 }
 
@@ -214,45 +214,45 @@ func (m *Megapool) HasMaxSize(maxSize int) bool {
 }
 
 func (m *Megapool) Equal(other Megapool) bool {
-	var m1IPs []string
-	var m2IPs []string
+	var ips1 []string
+	var ips2 []string
 	for _, v := range m.IPPool {
-		m1IPs = append(m1IPs, v.String())
+		ips1 = append(ips1, v.String())
 	}
 	for _, v := range other.IPPool {
-		m2IPs = append(m2IPs, v.String())
+		ips2 = append(ips2, v.String())
 	}
-	sort.Strings(m1IPs)
-	sort.Strings(m2IPs)
-	if !reflect.DeepEqual(m1IPs, m2IPs) {
+	sort.Strings(ips1)
+	sort.Strings(ips2)
+	if !slices.Equal(ips1, ips2) {
 		return false
 	}
 
-	var m1Prefixes []string
-	var m2Prefixes []string
+	var prefixes1 []string
+	var prefixes2 []string
 	for _, v := range m.PrefixPool {
-		m1Prefixes = append(m1Prefixes, v.String())
+		prefixes1 = append(prefixes1, v.String())
 	}
 	for _, v := range other.PrefixPool {
-		m2Prefixes = append(m2Prefixes, v.String())
+		prefixes2 = append(prefixes2, v.String())
 	}
-	sort.Strings(m1Prefixes)
-	sort.Strings(m2Prefixes)
-	if !reflect.DeepEqual(m1Prefixes, m2Prefixes) {
+	sort.Strings(prefixes1)
+	sort.Strings(prefixes2)
+	if !slices.Equal(prefixes1, prefixes2) {
 		return false
 	}
 
-	var m1Ranges []string
-	var m2Ranges []string
+	var ranges1 []string
+	var ranges2 []string
 	for _, v := range m.RangePool {
-		m1Ranges = append(m1Ranges, v.String())
+		ranges1 = append(ranges1, v.String())
 	}
 	for _, v := range other.RangePool {
-		m2Ranges = append(m2Ranges, v.String())
+		ranges2 = append(ranges2, v.String())
 	}
-	sort.Strings(m1Ranges)
-	sort.Strings(m2Ranges)
-	return reflect.DeepEqual(m1Ranges, m2Ranges)
+	sort.Strings(ranges1)
+	sort.Strings(ranges2)
+	return slices.Equal(ranges1, ranges2)
 }
 
 func (m *Megapool) String() string {
@@ -260,17 +260,17 @@ func (m *Megapool) String() string {
 }
 
 func (m *Megapool) AsSlice() []string {
-	var all []string
+	var s []string
 	for _, v := range m.IPPool {
-		all = append(all, v.String())
+		s = append(s, v.String())
 	}
 	for _, v := range m.PrefixPool {
-		all = append(all, v.String())
+		s = append(s, v.String())
 	}
 	for _, v := range m.RangePool {
-		all = append(all, v.String())
+		s = append(s, v.String())
 	}
-	return all
+	return s
 }
 
 func (r *Range) String() string {
