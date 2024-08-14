@@ -2,6 +2,8 @@ package megapool
 
 import (
 	"errors"
+	"fmt"
+	"log/slog"
 	"math"
 	"net/netip"
 	"slices"
@@ -20,11 +22,11 @@ type Range struct {
 	To   netip.Addr
 }
 
-func NewMegapool(ipsAndCIDRs string) (Megapool, error) {
+func NewMegapool(input string) (Megapool, error) {
 	var ipPool []netip.Addr
 	var prefixPool []netip.Prefix
 	var rangePool []Range
-	items := strings.TrimSpace(ipsAndCIDRs)
+	items := strings.TrimSpace(input)
 	if len(items) == 0 {
 		return Megapool{}, nil
 	}
@@ -34,27 +36,52 @@ func NewMegapool(ipsAndCIDRs string) (Megapool, error) {
 	for _, v := range all {
 		vv := strings.ReplaceAll(strings.ReplaceAll(v, " ", ""), "\t", "")
 		a, err := netip.ParseAddr(vv)
+		slog.Debug("parse megapool item", "step", "parse as ip", "err", err, "item", vv)
 		if err == nil {
 			ipPool = append(ipPool, a)
 			continue
 		}
 		p, err := netip.ParsePrefix(vv)
+		slog.Debug("parse megapool item", "step", "parse as cidr block", "err", err, "item", vv)
 		if err == nil {
 			prefixPool = append(prefixPool, p)
 			continue
 		}
 		r, err := parseRange(vv)
+		slog.Debug("parse megapool item", "step", "parse as range", "err", err, "item", vv)
 		if err == nil {
 			rangePool = append(rangePool, r)
 			continue
 		}
-		return Megapool{}, errors.New("not an IP, CIDR block or IP range")
+		return Megapool{}, fmt.Errorf("not an ip, cidr block or ip range: value=%v", vv)
 	}
 	return Megapool{
 		IPPool:     ipPool,
 		PrefixPool: prefixPool,
 		RangePool:  rangePool,
 	}, nil
+}
+
+func (m *Megapool) HasOnlyIPv4() bool {
+	if !m.HasMinSize(1) {
+		return false
+	}
+	for _, p := range m.IPPool {
+		if !p.Is4() {
+			return false
+		}
+	}
+	for _, p := range m.PrefixPool {
+		if !p.Addr().Is4() {
+			return false
+		}
+	}
+	for _, p := range m.RangePool {
+		if !p.From.Is4() {
+			return false
+		}
+	}
+	return true
 }
 
 func parseRange(r string) (Range, error) {

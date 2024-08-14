@@ -76,7 +76,8 @@ func TestNewMegapool(t *testing.T) {
 			args{"8.8.8.7,8.8.8.8"},
 			Megapool{
 				[]netip.Addr{a("8.8.8.7"), a("8.8.8.8")},
-				nil, nil},
+				nil, nil,
+			},
 			false,
 		}, {
 			"only CIDRs and comma separator and ordered",
@@ -84,7 +85,8 @@ func TestNewMegapool(t *testing.T) {
 			Megapool{
 				nil,
 				[]netip.Prefix{p("1.0.0.0/8"), p("2.0.0.0/8")},
-				nil},
+				nil,
+			},
 			false,
 		}, {
 			"only ranges and comma separator",
@@ -92,7 +94,8 @@ func TestNewMegapool(t *testing.T) {
 			Megapool{
 				nil,
 				nil,
-				[]Range{{From: a("1.1.1.1"), To: a("1.1.1.10")}, {From: a("2.2.2.0"), To: a("2.2.2.5")}}},
+				[]Range{{From: a("1.1.1.1"), To: a("1.1.1.10")}, {From: a("2.2.2.0"), To: a("2.2.2.5")}},
+			},
 			false,
 		}, {
 			"comma separator and ordered and spaces and tabs",
@@ -100,7 +103,8 @@ func TestNewMegapool(t *testing.T) {
 			Megapool{
 				[]netip.Addr{a("8.8.8.7"), a("8.8.8.8")},
 				[]netip.Prefix{p("1.0.0.0/8"), p("2.0.0.0/8"), p("3.0.0.0/8")},
-				nil},
+				nil,
+			},
 			false,
 		}, {
 			"comma separator and unordered and spaces and tabs",
@@ -141,7 +145,8 @@ func TestNewMegapool(t *testing.T) {
 			Megapool{
 				[]netip.Addr{a("8.8.8.7"), a("8.8.8.8")},
 				[]netip.Prefix{p("3.0.0.0/8"), p("1.0.0.0/8"), p("2.0.0.0/8")},
-				nil},
+				nil,
+			},
 			false,
 		}, {
 			"mixed separators and unordered and spaces and tabs",
@@ -149,7 +154,8 @@ func TestNewMegapool(t *testing.T) {
 			Megapool{
 				[]netip.Addr{a("8.8.8.7"), a("8.8.8.8")},
 				append([]netip.Prefix{p("3.0.0.0/8"), p("1.0.0.0/8"), p("2.0.0.0/8")}),
-				nil},
+				nil,
+			},
 			false,
 		},
 	}
@@ -157,7 +163,7 @@ func TestNewMegapool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := NewMegapool(tt.args.ipsAndCIDRs)
-			//fmt.Println(err)
+			// fmt.Println(err)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewMegapool() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -292,6 +298,30 @@ func TestMegapool_HasMaxSize(t *testing.T) {
 	}
 }
 
+func TestMegapool_HasOnlyIPv4(t *testing.T) {
+	tests := []struct {
+		name string
+		main string
+		want bool
+	}{
+		{"empty", "", false},
+		{"only v4 ips", "1.1.1.1, 1.1.1.2", true},
+		{"only v4 cidrs", "1.1.1.1/32, 1.1.1.0/24", true},
+		{"only v4 ranges", "1.1.1.1-1.1.1.10", true},
+		{"only v4 but mixed", "1.1.1.1, 1.1.1.0/24, 1.1.1.1-1.1.1.10", true},
+		{"ips v4 and v6", "1.1.1.1, 2345:0425:2CA1:0000:0000:0567:5673:23b5", false},
+		{"v4 and v6 cidrs", "1.1.1.1/32, 2001:db8:1234::/48", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, _ := NewMegapool(tt.main)
+			if got := m.HasOnlyIPv4(); got != tt.want {
+				t.Errorf("Megapool.HasOnlyIPv4() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMegapool_AsSlice(t *testing.T) {
 	tests := []struct {
 		name string
@@ -299,12 +329,16 @@ func TestMegapool_AsSlice(t *testing.T) {
 		want []string
 	}{
 		{"empty", "", nil},
-		{"shuffled",
+		{
+			"shuffled",
 			"1.1.1.1,1.1.1.5-1.1.1.10,1.1.1.2,2.2.2.0/24,1.1.1.20-1.1.1.25,2.2.3.0/24",
-			[]string{"1.1.1.1", "1.1.1.2", "2.2.2.0/24", "2.2.3.0/24", "1.1.1.5-1.1.1.10", "1.1.1.20-1.1.1.25"}},
-		{"shuffled some more",
+			[]string{"1.1.1.1", "1.1.1.2", "2.2.2.0/24", "2.2.3.0/24", "1.1.1.5-1.1.1.10", "1.1.1.20-1.1.1.25"},
+		},
+		{
+			"shuffled some more",
 			"2.2.2.0/24,1.1.1.5-1.1.1.10,1.1.1.1,1.1.1.20-1.1.1.25,2.2.3.0/24,1.1.1.2,",
-			[]string{"1.1.1.1", "1.1.1.2", "2.2.2.0/24", "2.2.3.0/24", "1.1.1.5-1.1.1.10", "1.1.1.20-1.1.1.25"}},
+			[]string{"1.1.1.1", "1.1.1.2", "2.2.2.0/24", "2.2.3.0/24", "1.1.1.5-1.1.1.10", "1.1.1.20-1.1.1.25"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
